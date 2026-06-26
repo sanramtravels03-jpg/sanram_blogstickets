@@ -48,49 +48,7 @@ export default function NewsSidebar({
         </div>
       </div>
 
-      <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-md">
-        <h3 className="mb-4 text-xl font-bold">
-          Categories
-        </h3>
-
-        <ul className="space-y-3">
-          <li>
-            <a
-              href="/categories/airlines"
-              className="hover:text-blue-600"
-            >
-              Airlines
-            </a>
-          </li>
-
-          <li>
-            <a
-              href="/categories/airport-guides"
-              className="hover:text-blue-600"
-            >
-              Airports
-            </a>
-          </li>
-
-          <li>
-            <a
-              href="/categories/airspace"
-              className="hover:text-blue-600"
-            >
-              Airspace
-            </a>
-          </li>
-
-          <li>
-            <a
-              href="/categories/tickets"
-              className="hover:text-blue-600"
-            >
-              Tickets
-            </a>
-          </li>
-        </ul>
-      </div>
+     
     </aside>
   );
 }

@@ -78,7 +78,7 @@ export default async function NewsPage() {
           </h2>
 
           <p className="text-slate-600">
-            We're unable to fetch the latest
+            We&apos;re unable to fetch the latest
             aviation updates right now. Please
             check back later.
           </p>
