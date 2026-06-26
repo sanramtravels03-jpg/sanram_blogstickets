@@ -6,7 +6,7 @@ export default function Navbar() {
     <nav className="bg-white shadow-sm sticky top-0 z-50">
       <div className="container flex items-center justify-between">
         <Link href="/">
-          <Image src="/sanram.logo..png" alt="Logo" width={100} height={50} />
+          <Image src="/sanram.logo.png" alt="Logo" width={100} height={50} />
         </Link>
 
         <div className="flex gap-8">

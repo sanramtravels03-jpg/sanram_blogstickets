@@ -2,10 +2,14 @@ import FeaturedNews from "./aviation/FeaturedNews";
 import NewsGrid from "./aviation/NewsGrid";
 import NewsSidebar from "./aviation/NewsSidebar";
 import { NewsArticle } from "@/types/news";
-import { getAviationNews } from "@/lib/aviationNews";
 
-export default async function LatestNews() {
-  const articles = await getAviationNews();
+
+
+interface Props {
+  articles: NewsArticle[];
+}
+
+export default function LatestNews({ articles }: Props) {
 
   /*
     Remove invalid articles
@@ -132,7 +136,6 @@ export default async function LatestNews() {
             </div>
           )}
         </div>
-
         {sidebarArticles.length > 0 && (
           <div>
             <NewsSidebar

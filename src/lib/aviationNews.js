@@ -1,3 +1,13 @@
+import fs from "fs/promises";
+import path from "path";
+
+const CACHE_FILE = path.join(
+  process.cwd(),
+  "src",
+  "cache",
+  "aviationNews.json"
+);
+
 function normalize(article) {
   return {
     source: {
@@ -6,8 +16,13 @@ function normalize(article) {
     title: article.title || "",
     description: article.description || "",
     url: article.url || "#",
-    urlToImage: article.image || article.urlToImage || null,
-    publishedAt: article.publishedAt || null,
+    urlToImage:
+      article.image ||
+      article.urlToImage ||
+      null,
+    publishedAt:
+      article.publishedAt ||
+      new Date().toISOString(),
     content: article.content || "",
   };
 }
@@ -56,29 +71,35 @@ const excludedKeywords = [
   "police",
 ];
 
-export async function getAviationNews() {
+async function readCache() {
   try {
-    console.log(
-      "GNEWS API KEY AVAILABLE:",
-      !!process.env.GNEWS_API_KEY
+    const data = await fs.readFile(
+      CACHE_FILE,
+      "utf-8"
     );
 
-    /*
-      INDIAN AVIATION NEWS
-    */
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
+}
 
-   const indianQuery =
-  '"Air India" OR IndiGo OR "Air India Express" OR Akasa OR SpiceJet OR DGCA OR AAI';
+async function writeCache(data) {
+  await fs.writeFile(
+    CACHE_FILE,
+    JSON.stringify(data, null, 2)
+  );
+}
 
-    /*
-      INTERNATIONAL AVIATION NEWS
-    */
+export async function getAviationNews() {
+  try {
+    console.log("Fetching Latest Aviation News...");
 
-    const internationalQuery = `
-      (
-       'Airbus OR Boeing';
-      )
-    `;
+    const indianQuery =
+      '"Air India" OR IndiGo OR "Air India Express" OR Akasa OR SpiceJet OR DGCA OR AAI';
+
+    const internationalQuery =
+      '"Airbus" OR Boeing';
 
     const [
       indianResponse,
@@ -87,18 +108,22 @@ export async function getAviationNews() {
       fetch(
         `https://gnews.io/api/v4/search?q=${encodeURIComponent(
           indianQuery
-        )}&lang=en&country=in&max=7&apikey=${process.env.GNEWS_API_KEY}`,
+        )}&lang=en&country=in&max=10&apikey=${process.env.GNEWS_API_KEY}`,
         {
-          cache: "no-store",
+          next: {
+            revalidate: 43200,
+          },
         }
       ),
 
       fetch(
         `https://gnews.io/api/v4/search?q=${encodeURIComponent(
           internationalQuery
-        )}&lang=en&max=3&apikey=${process.env.GNEWS_API_KEY}`,
+        )}&lang=en&max=5&apikey=${process.env.GNEWS_API_KEY}`,
         {
-          cache: "no-store",
+          next: {
+            revalidate: 43200,
+          },
         }
       ),
     ]);
@@ -109,31 +134,12 @@ export async function getAviationNews() {
     const internationalData =
       await internationalResponse.json();
 
-    console.log(
-      "Indian GNews:",
-      indianData
-    );
-
-    console.log(
-      "International GNews:",
-      internationalData
-    );
-
-    let articles = [
+    let freshArticles = [
       ...(indianData.articles || []),
       ...(internationalData.articles || []),
     ].map(normalize);
 
-    console.log(
-      "Before filtering:",
-      articles.length
-    );
-
-    /*
-      REMOVE UNWANTED NEWS
-    */
-
-    articles = articles.filter(
+    freshArticles = freshArticles.filter(
       (article) => {
         const text = `
           ${article.title}
@@ -141,67 +147,68 @@ export async function getAviationNews() {
           ${article.content}
         `.toLowerCase();
 
-        const hasExcluded =
-          excludedKeywords.some(
-            (keyword) =>
-              text.includes(
-                keyword.toLowerCase()
-              )
-          );
-
-        return !hasExcluded;
+        return !excludedKeywords.some(
+          (keyword) =>
+            text.includes(keyword)
+        );
       }
     );
 
-    console.log(
-      "After filtering:",
-      articles.length
-    );
+    const cachedArticles =
+      await readCache();
 
-    /*
-      REMOVE DUPLICATES
-    */
+    let merged = [
+      ...freshArticles,
+      ...cachedArticles,
+    ];
 
-    articles = articles.filter(
+    merged = merged.filter(
       (article, index, self) =>
         index ===
         self.findIndex(
           (a) =>
+            a.url === article.url ||
             a.title
               ?.trim()
               .toLowerCase() ===
-            article.title
-              ?.trim()
-              .toLowerCase()
+              article.title
+                ?.trim()
+                .toLowerCase()
         )
     );
 
-    /*
-      LATEST FIRST
-    */
-
-    articles.sort(
+    merged.sort(
       (a, b) =>
         new Date(
-          b.publishedAt || 0
+          b.publishedAt
         ).getTime() -
         new Date(
-          a.publishedAt || 0
+          a.publishedAt
         ).getTime()
     );
 
+    merged = merged.slice(0, 100);
+
+    await writeCache(merged);
+
     console.log(
-      "Final articles:",
-      articles.length
+      "Returning",
+      merged.length,
+      "cached articles"
     );
 
-    return articles.slice(0, 10);
+    return merged;
   } catch (err) {
-    console.error(
-      "GNews failed:",
-      err
+    console.error(err);
+
+    const cachedArticles =
+      await readCache();
+
+    console.log(
+      "Using cached news:",
+      cachedArticles.length
     );
 
-    return [];
+    return cachedArticles;
   }
 }
