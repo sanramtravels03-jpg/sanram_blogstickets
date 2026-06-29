@@ -1,13 +1,17 @@
-  import { NextResponse } from "next/server";
-  import { getAviationNews } from "@/lib/aviationNews";
+// app/api/aviation-news/route.ts
 
-  export async function GET() {
-    const articles = await getAviationNews();
+import { NextResponse } from "next/server";
+import { getAviationNews } from "@/lib/aviationNews";
 
-    return NextResponse.json({
-      status: "ok",
-      totalResults: articles.length,
-      articles,
-      message: "API Working",
-    });
-  } 
+export const dynamic = "force-dynamic"; // ← this is the fix
+
+export async function GET() {
+  const articles = await getAviationNews();
+
+  return NextResponse.json({
+    status: "ok",
+    totalResults: articles.length,
+    articles,
+    message: "API Working",
+  });
+}

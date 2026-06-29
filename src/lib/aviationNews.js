@@ -1,9 +1,4 @@
 // src/lib/aviationNews.js
-// ─────────────────────────────────────────────────────────────
-//  DEV:  reads from src/cache/aviationNews.json (no API calls)
-//  PROD: uses Next.js fetch cache (revalidates every 12 hours)
-//  Run `node scripts/fetchNews.mjs` once to populate the cache
-// ─────────────────────────────────────────────────────────────
 
 const EXCLUDED = [
   "fighter jet", "fighter", "military", "war", "warplane", "missile",
@@ -18,12 +13,12 @@ const EXCLUDED = [
 function normalize(article) {
   return {
     source:      { name: article.source?.name || "Aviation News" },
-    title:       article.title        || "",
-    description: article.description  || "",
-    url:         article.url          || "#",
+    title:       article.title       || "",
+    description: article.description || "",
+    url:         article.url         || "#",
     urlToImage:  article.image || article.urlToImage || null,
-    publishedAt: article.publishedAt  || new Date().toISOString(),
-    content:     article.content      || "",
+    publishedAt: article.publishedAt || new Date().toISOString(),
+    content:     article.content     || "",
   };
 }
 
@@ -42,6 +37,16 @@ function dedupe(articles) {
   });
 }
 
+function process_articles(raw) {
+  return dedupe(raw.map(normalize).filter(isClean))
+    .sort((a, b) =>
+      new Date(b.publishedAt).getTime() -
+      new Date(a.publishedAt).getTime()
+    )
+    .slice(0, 100);
+}
+
+// ── PROD only — no fs, no dynamic imports ──────────────────────
 async function fetchFromAPI() {
   const indianQuery =
     '"Air India" OR IndiGo OR "Air India Express" OR Akasa OR SpiceJet OR DGCA OR AAI';
@@ -73,62 +78,42 @@ async function fetchFromAPI() {
   return [...(d1.articles || []), ...(d2.articles || [])];
 }
 
-async function readDevCache() {
-  // Dynamic import so `fs` is never bundled for the browser / edge
-  const fs   = await import("fs/promises");
-  const path = await import("path");
-  const file = path.join(process.cwd(), "src", "cache", "aviationNews.json");
-  try {
-    const raw = await fs.readFile(file, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return null; // cache file missing — fall through to API
-  }
+// ── DEV only — reads local JSON, no API calls ──────────────────
+// This function is only ever called when NODE_ENV === "development"
+// so Next.js build (NODE_ENV === "production") never touches fs
+async function fetchFromDevCache() {
+  const { readFile } = await import("fs/promises");
+  const { join }     = await import("path");
+  const file = join(process.cwd(), "src", "cache", "aviationNews.json");
+  const raw  = await readFile(file, "utf-8");
+  return JSON.parse(raw);
 }
 
+// ── Main export ────────────────────────────────────────────────
 export async function getAviationNews() {
-  try {
-    let raw = [];
-
-    if (process.env.NODE_ENV === "development") {
-      // ── DEV: serve from local JSON so we never hit the API rate limit ──
-      const cached = await readDevCache();
-      if (cached && cached.length > 0) {
-        console.log(`[news] dev cache hit — ${cached.length} articles`);
-        return cached;
-      }
-      // Cache file missing: fetch once and remind the developer
+  // DEV — read from local cache file, never call the API
+  if (process.env.NODE_ENV === "development") {
+    try {
+      const cached = await fetchFromDevCache();
+      console.log(`[news] dev cache — ${cached.length} articles`);
+      return cached;
+    } catch {
       console.warn(
-        "[news] dev cache empty — fetching from API once.\n" +
-        "       Run `node scripts/fetchNews.mjs` to refresh the cache file."
+        "[news] cache file missing.\n" +
+        "       Run: node scripts/fetchNews.mjs"
       );
-      raw = await fetchFromAPI();
-    } else {
-      // ── PROD: Next.js handles caching via fetch() revalidate ──
-      raw = await fetchFromAPI();
+      return [];
     }
+  }
 
-    const articles = dedupe(
-      raw.map(normalize).filter(isClean)
-    ).sort(
-      (a, b) =>
-        new Date(b.publishedAt).getTime() -
-        new Date(a.publishedAt).getTime()
-    );
-
-    const result = articles.slice(0, 100);
-    console.log(`[news] returning ${result.length} articles`);
-    return result;
-
+  // PROD — fetch from GNews with Next.js ISR cache
+  try {
+    const raw = await fetchFromAPI();
+    const articles = process_articles(raw);
+    console.log(`[news] ${articles.length} articles`);
+    return articles;
   } catch (err) {
     console.error("[news] fetch failed:", err.message);
-    // Last resort in prod: try to return whatever is in the cache file
-    if (process.env.NODE_ENV !== "development") {
-      try {
-        const cached = await readDevCache();
-        if (cached?.length) return cached;
-      } catch { /* ignore */ }
-    }
     return [];
   }
 }
