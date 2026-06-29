@@ -1,45 +1,13 @@
+// app/news/page.tsx
+
 import NewsCard from "@/components/aviation/NewsCard";
 import { NewsArticle } from "@/types/news";
-import { headers } from "next/headers";
+import { getAviationNews } from "@/lib/aviationNews";
 
-async function getNews() {
-  try {
-    const headersList = await headers();
-
-    const host = headersList.get("host");
-
-    if (!host) {
-      return { articles: [] };
-    }
-
-    const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
-
-    const res = await fetch(`${protocol}://${host}/api/aviation-news`, {
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      console.error("News API returned:", res.status);
-
-      return {
-        articles: [],
-      };
-    }
-
-    return await res.json();
-  } catch (error) {
-    console.error("Failed to fetch news:", error);
-
-    return {
-      articles: [],
-    };
-  }
-}
+export const revalidate = 43200; // revalidate every 12 hours
 
 export default async function NewsPage() {
-  const data = await getNews();
-
-  const articles: NewsArticle[] = data?.articles || [];
+  const articles: NewsArticle[] = await getAviationNews();
 
   return (
     <main className="container mx-auto px-4 py-10">
@@ -56,7 +24,6 @@ export default async function NewsPage() {
           <h2 className="mb-2 text-2xl font-semibold">
             No Aviation News Available
           </h2>
-
           <p className="text-slate-600">
             We&apos;re unable to fetch the latest aviation updates right now.
             Please check back later.
