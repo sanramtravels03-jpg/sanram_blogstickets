@@ -12,25 +12,14 @@ async function getNews() {
       return { articles: [] };
     }
 
-    const protocol =
-      process.env.NODE_ENV === "development"
-        ? "http"  
-        : "https";
+    const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
 
-    const res = await fetch(
-      `${protocol}://${host}/api/aviation-news`,
-      {
-        next: {
-          revalidate: 43200, // 12 hours
-        },
-      }
-    );
+    const res = await fetch(`${protocol}://${host}/api/aviation-news`, {
+      cache: "no-store",
+    });
 
     if (!res.ok) {
-      console.error(
-        "News API returned:",
-        res.status
-      );
+      console.error("News API returned:", res.status);
 
       return {
         articles: [],
@@ -39,10 +28,7 @@ async function getNews() {
 
     return await res.json();
   } catch (error) {
-    console.error(
-      "Failed to fetch news:",
-      error
-    );
+    console.error("Failed to fetch news:", error);
 
     return {
       articles: [],
@@ -53,22 +39,16 @@ async function getNews() {
 export default async function NewsPage() {
   const data = await getNews();
 
-  const articles: NewsArticle[] =
-    data?.articles || [];
+  const articles: NewsArticle[] = data?.articles || [];
 
   return (
     <main className="container mx-auto px-4 py-10">
-      <h1 className="mb-8 text-4xl font-bold">
-        Aviation News
-      </h1>
+      <h1 className="mb-8 text-4xl font-bold">Aviation News</h1>
 
       {articles.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {articles.map((article, index) => (
-            <NewsCard
-              key={`${article.url}-${index}`}
-              article={article}
-            />
+            <NewsCard key={`${article.url}-${index}`} article={article} />
           ))}
         </div>
       ) : (
@@ -78,9 +58,8 @@ export default async function NewsPage() {
           </h2>
 
           <p className="text-slate-600">
-            We&apos;re unable to fetch the latest
-            aviation updates right now. Please
-            check back later.
+            We&apos;re unable to fetch the latest aviation updates right now.
+            Please check back later.
           </p>
         </div>
       )}
