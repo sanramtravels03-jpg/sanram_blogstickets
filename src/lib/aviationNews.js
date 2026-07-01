@@ -93,6 +93,11 @@ function processArticles(raw) {
 }
 
 async function fetchFromAPI() {
+  if (!process.env.GNEWS_API_KEY) {
+    console.warn("GNews API key is not configured.");
+    return [];
+  }
+
   const query =
     'aviation OR airline OR airport OR "Air India" OR IndiGo OR Akasa OR Boeing OR Airbus';
 
@@ -120,10 +125,9 @@ async function fetchFromAPI() {
 
 export async function getAviationNews() {
   try {
-    // Check Redis first
     const cache = await redis.get("aviation-news");
 
-    if (cache?.articles) {
+    if (cache?.articles?.length) {
       console.log("Serving Aviation News from Redis");
       return cache.articles;
     }
@@ -150,10 +154,9 @@ export async function getAviationNews() {
   } catch (error) {
     console.error("GNews Error:", error);
 
-    // Return stale cache if available
     const stale = await redis.get("aviation-news");
 
-    if (stale?.articles) {
+    if (stale?.articles?.length) {
       console.log("Serving stale Redis cache");
       return stale.articles;
     }

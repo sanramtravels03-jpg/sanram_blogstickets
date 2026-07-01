@@ -4,7 +4,8 @@ import NewsCard from "@/components/aviation/NewsCard";
 import { NewsArticle } from "@/types/news";
 import { getAviationNews } from "@/lib/aviationNews";
 
-export const revalidate = 43200; // revalidate every 12 hours
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function NewsPage() {
   const articles: NewsArticle[] = await getAviationNews();
